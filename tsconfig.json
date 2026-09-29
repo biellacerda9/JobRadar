@@ -10,7 +10,8 @@
     "module": "nodenext",
     "target": "esnext",
     "types": [ 
-      "jest"
+      "jest",
+      "node"
     ],
     // For nodejs:
     // "lib": ["esnext"],
