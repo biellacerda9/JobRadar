@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "lint": "eslint . --ext .ts",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "dev": "tsx src/index.ts"
   },
   "keywords": [],
   "author": "",

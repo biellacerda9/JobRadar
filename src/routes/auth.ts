@@ -91,6 +91,15 @@ router.post(
     try {
       const { name, email, password } = req.body;
 
+      const emailAlreadyExists = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email));
+
+      if (emailAlreadyExists.length > 0) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
       const { user, token } = await registerUser({ name, email, password });
 
       res.status(201).json({ user, token });
