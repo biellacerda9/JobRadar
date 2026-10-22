@@ -13,6 +13,12 @@ import {
   analyzeCurriculo,
   CurriculoAnalysisError,
 } from "../services/curriculoAnalyzer.js";
+import {
+  compararCurriculoComVaga,
+  CurriculoComparacaoError,
+} from "../services/curriculoComparador.js";
+import { comparacaoVagaInputSchema } from "../services/curriculoComparacao.schema.js";
+import { validationMiddleware } from "../middleware/validationMiddleware.js";
 
 const router = express.Router();
 
@@ -181,6 +187,71 @@ router.post(
         return res.status(502).json({ error: error.message });
       }
       console.error("Error analyzing curriculo:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+router.post(
+  "/comparar-vaga",
+  authMiddleware,
+  validationMiddleware(comparacaoVagaInputSchema),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const { vagaTexto } = req.body as { vagaTexto: string };
+
+      const [curriculo] = await db
+        .select()
+        .from(curriculos)
+        .where(eq(curriculos.user_id, userId));
+
+      if (!curriculo?.actual_version) {
+        return res
+          .status(404)
+          .json({ error: "No curriculo uploaded for this user yet" });
+      }
+
+      const [version] = await db
+        .select()
+        .from(curriculo_versions)
+        .where(eq(curriculo_versions.id, curriculo.actual_version));
+
+      if (!version) {
+        return res.status(404).json({ error: "Curriculo version not found" });
+      }
+
+      const comparacao = await compararCurriculoComVaga(
+        version.raw_content,
+        vagaTexto,
+      );
+
+      const [matchAnalise] = await db
+        .insert(match_analises)
+        .values({
+          versao_curriculo_id: version.id,
+          score: String(comparacao.score),
+          pontos_fortes: comparacao.pontos_fortes,
+          pontos_a_melhorar: comparacao.pontos_a_melhorar,
+          vaga_colada_texto: vagaTexto,
+          sugestoes: comparacao.sugestoes,
+        })
+        .returning();
+
+      res.status(201).json({
+        curriculoId: curriculo.id,
+        versionId: version.id,
+        score: comparacao.score,
+        pontosFortes: comparacao.pontos_fortes,
+        pontosAMelhorar: comparacao.pontos_a_melhorar,
+        sugestoes: comparacao.sugestoes,
+        analiseId: matchAnalise?.id,
+      });
+    } catch (error) {
+      if (error instanceof CurriculoComparacaoError) {
+        return res.status(502).json({ error: error.message });
+      }
+      console.error("Error comparing curriculo to vaga:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   },
