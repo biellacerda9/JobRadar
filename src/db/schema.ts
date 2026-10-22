@@ -1,4 +1,4 @@
-import { jsonb } from "drizzle-orm/pg-core";
+import { jsonb, numeric } from "drizzle-orm/pg-core";
 import { pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
@@ -33,5 +33,20 @@ export const curriculo_versions = pgTable("curriculo_versions", {
   version_number: varchar("version_number", { length: 255 }).notNull(),
   raw_content: varchar("raw_content", { length: 10000 }).notNull(),
   structured_content: jsonb("structured_content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// vaga_id fica sem FK por enquanto: a tabela de vagas só existe a partir da Sprint 4.
+// null = análise pura (sem vaga associada); preenchido quando a Sprint 3 adicionar a
+// comparação com vaga.
+export const match_analises = pgTable("match_analises", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  vaga_id: uuid("vaga_id"),
+  versao_curriculo_id: uuid("versao_curriculo_id")
+    .notNull()
+    .references((): AnyPgColumn => curriculo_versions.id, { onDelete: "cascade" }),
+  score: numeric("score"),
+  pontos_fortes: jsonb("pontos_fortes").notNull(),
+  pontos_a_melhorar: jsonb("pontos_a_melhorar").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
