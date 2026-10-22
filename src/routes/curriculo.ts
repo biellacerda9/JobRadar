@@ -2,13 +2,17 @@ import express, { type Response } from "express";
 import multer from "multer";
 import { eq, count } from "drizzle-orm";
 import { db } from "../index.js";
-import { curriculos, curriculo_versions } from "../db/schema.js";
+import { curriculos, curriculo_versions, match_analises } from "../db/schema.js";
 import { authMiddleware, type AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import {
   extractRawText,
   SUPPORTED_MIME_TYPES,
   UnsupportedFileTypeError,
 } from "../services/curriculoParser.js";
+import {
+  analyzeCurriculo,
+  CurriculoAnalysisError,
+} from "../services/curriculoAnalyzer.js";
 
 const router = express.Router();
 
@@ -116,6 +120,67 @@ router.post(
         return res.status(400).json({ error: error.message });
       }
       console.error("Error uploading curriculo:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+router.post(
+  "/analise",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+
+      const [curriculo] = await db
+        .select()
+        .from(curriculos)
+        .where(eq(curriculos.user_id, userId));
+
+      if (!curriculo?.actual_version) {
+        return res
+          .status(404)
+          .json({ error: "No curriculo uploaded for this user yet" });
+      }
+
+      const [version] = await db
+        .select()
+        .from(curriculo_versions)
+        .where(eq(curriculo_versions.id, curriculo.actual_version));
+
+      if (!version) {
+        return res.status(404).json({ error: "Curriculo version not found" });
+      }
+
+      const analise = await analyzeCurriculo(version.raw_content);
+
+      await db
+        .update(curriculo_versions)
+        .set({ structured_content: analise.estruturado })
+        .where(eq(curriculo_versions.id, version.id));
+
+      const [matchAnalise] = await db
+        .insert(match_analises)
+        .values({
+          versao_curriculo_id: version.id,
+          pontos_fortes: analise.pontos_fortes,
+          pontos_a_melhorar: analise.pontos_a_melhorar,
+        })
+        .returning();
+
+      res.status(201).json({
+        curriculoId: curriculo.id,
+        versionId: version.id,
+        estruturado: analise.estruturado,
+        pontosFortes: analise.pontos_fortes,
+        pontosAMelhorar: analise.pontos_a_melhorar,
+        analiseId: matchAnalise?.id,
+      });
+    } catch (error) {
+      if (error instanceof CurriculoAnalysisError) {
+        return res.status(502).json({ error: error.message });
+      }
+      console.error("Error analyzing curriculo:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   },
