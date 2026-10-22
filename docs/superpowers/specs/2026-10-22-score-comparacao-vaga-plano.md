@@ -48,6 +48,18 @@ MVP** fecha aqui.
    ponta.
 7. **Commits separados** por unidade lógica + push, como vem sendo feito.
 
+## Resultado
+
+Implementado, testado e commitado/pushed (`4da13b7..ee6e13c`). Endpoint
+`POST /curriculo/comparar-vaga` funcional.
+
+**Gate 1 validado** — mesmo currículo real, duas vagas coladas:
+- Vaga aderente (backend júnior Node.js/TypeScript, bate quase tudo): **score 95**
+- Vaga completamente fora do perfil (ML sênior, Python/Kubernetes/mestrado): **score 20**
+
+Modelo diferencia bem os dois casos — score reage de forma sensata à aderência real,
+não é número arbitrário.
+
 ## Fora de escopo nesta etapa
 
 - Persistir vaga como entidade própria / deduplicação (Sprint 4).
