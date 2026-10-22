@@ -5,6 +5,7 @@ import express from "express";
 import bodyParser from "body-parser";
 //import { registerUser, loginUser } from "./routes/auth.js";
 import authRouter from "./routes/auth.js";
+import curriculoRouter from "./routes/curriculo.js";
 
 const app = express();
 const PORT = 3001;
@@ -16,6 +17,7 @@ const pool = new Pool({
 export const db = drizzle({ client: pool });
 
 app.use(authRouter);
+app.use("/curriculo", curriculoRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
