@@ -1,4 +1,4 @@
-import { jsonb, numeric } from "drizzle-orm/pg-core";
+import { jsonb, numeric, text } from "drizzle-orm/pg-core";
 import { pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
@@ -48,5 +48,8 @@ export const match_analises = pgTable("match_analises", {
   score: numeric("score"),
   pontos_fortes: jsonb("pontos_fortes").notNull(),
   pontos_a_melhorar: jsonb("pontos_a_melhorar").notNull(),
+  // Preenchidos só na comparação com vaga (Sprint 3); null na análise pura.
+  vaga_colada_texto: text("vaga_colada_texto"),
+  sugestoes: jsonb("sugestoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
