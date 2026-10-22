@@ -60,6 +60,17 @@ Implementado, testado e commitado/pushed (`4da13b7..ee6e13c`). Endpoint
 Modelo diferencia bem os dois casos — score reage de forma sensata à aderência real,
 não é número arbitrário.
 
+### Testes adicionais (pedido do usuário, pós-entrega)
+
+Mesmo currículo real, mais casos:
+- Vaga parcialmente aderente (frontend pleno, stack parcialmente sobreposta, nível
+  acima do currículo): **score 60** — gradação condizente entre os 3 pontos (20 / 60 / 95).
+- **Consistência**: mesmo par currículo/vaga (o caso de score 95) rodado 3x seguidas →
+  **95, 95, 95**. O risco de variação entre rodadas que eu tinha registrado no plano
+  original não se confirmou nesse teste — na prática, pra esse modelo e esse prompt, o
+  score saiu estável. Não é garantia formal (amostra pequena), mas reduz a preocupação
+  inicial.
+
 ## Fora de escopo nesta etapa
 
 - Persistir vaga como entidade própria / deduplicação (Sprint 4).
