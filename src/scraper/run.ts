@@ -16,7 +16,8 @@ async function main() {
   const db = drizzle({ client: pool });
 
   let inserted = 0;
-  let skipped = 0;
+  let duplicates = 0;
+  let failed = 0;
 
   for (const [index, termo] of SEARCH_TERMS.entries()) {
     if (index > 0) await sleep(DELAY_BETWEEN_REQUESTS_MS);
@@ -27,21 +28,25 @@ async function main() {
 
     for (const job of jobs) {
       try {
-        await db.insert(vagas).values(job);
-        inserted++;
+        // Duplicates (same url_original across terms/runs) are skipped by the
+        // database itself; returning() is empty when that happens.
+        const rows = await db
+          .insert(vagas)
+          .values(job)
+          .onConflictDoNothing({ target: vagas.url_original })
+          .returning({ id: vagas.id });
+        if (rows.length > 0) inserted++;
+        else duplicates++;
       } catch (error) {
-        // ponytail: unique constraint on url_original catches duplicates across
-        // terms/runs. Real dedup handling (skip query, update-on-conflict) is
-        // Sprint 5 — here we just don't let one collision kill the whole run.
-        skipped++;
-        if (!(error instanceof Error) || !error.message.includes("unique")) {
-          console.error(`  failed to insert "${job.titulo}":`, error);
-        }
+        failed++;
+        console.error(`  failed to insert "${job.titulo}":`, error);
       }
     }
   }
 
-  console.log(`Done. Inserted: ${inserted}, skipped (duplicate/error): ${skipped}`);
+  console.log(
+    `Done. Inserted: ${inserted}, duplicates: ${duplicates}, failed: ${failed}`,
+  );
   await pool.end();
 }
 
