@@ -49,6 +49,16 @@ describe("analyzeCurriculo", () => {
     expect(result).toEqual(VALID_ANALYSIS);
   });
 
+  it("asks Ollama for a context window larger than its 4096 default", async () => {
+    const fetchMock = mockFetchOnce(JSON.stringify(VALID_ANALYSIS));
+    global.fetch = fetchMock;
+
+    await analyzeCurriculo("texto do currículo");
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.options.num_ctx).toBeGreaterThan(4096);
+  });
+
   it("retries once and succeeds if the second attempt is valid", async () => {
     const fetchMock = jest
       .fn<FetchLike>()

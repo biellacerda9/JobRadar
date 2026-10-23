@@ -1,5 +1,9 @@
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen2.5:7b-instruct";
+// Ollama's runtime default is 4096 tokens and it silently truncates the start of
+// the input (our system prompt) when exceeded. 8192 fits a long resume + job
+// description + response.
+const OLLAMA_NUM_CTX = 8192;
 
 export class OllamaRequestError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -25,6 +29,7 @@ export async function chatJson(
       model: OLLAMA_MODEL,
       format: "json",
       stream: false,
+      options: { num_ctx: OLLAMA_NUM_CTX },
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
