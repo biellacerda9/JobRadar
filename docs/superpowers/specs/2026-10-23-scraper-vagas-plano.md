@@ -108,3 +108,19 @@ RNF01 (não sobrecarregar site-fonte, respeitar robots.txt) — vou checar o
 `robots.txt` do Gupy antes de implementar a coleta e ir devagar (sem paralelismo
 agressivo, delay entre requests). Se o robots.txt proibir as rotas que eu precisar
 scraping, paro e aviso antes de seguir.
+
+## Resultado
+
+Implementado, testado e commitado/pushed (`dcdcadc..f5bb6fa`).
+
+- `robots.txt` do Gupy libera geral — scraping dentro das regras do site.
+- `npm run scrape` roda os 3 termos de busca, 1s de delay entre requests.
+- **Teste real**: rodado contra o Gupy de verdade — **34 vagas reais inseridas, 0
+  erro**. Dados confirmados no banco (título, empresa, localização, nível batendo
+  com o site real).
+- `vagas` ganhou FK de verdade em `match_analises.vaga_id` (antes era uuid solto,
+  já que a tabela não existia).
+
+Sprint 4 fechada dentro do escopo combinado (sem scheduler, sem dedup com tratamento
+de conflito, sem segunda fonte — tudo isso fica pra Sprint 5/6 como já estava
+planejado).
