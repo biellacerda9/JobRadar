@@ -1,56 +1,44 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { vagas } from "../db/schema.js";
-import { fetchGupyJobs } from "./gupy.js";
+import { runScrape } from "./scrape.js";
+import { startScheduler } from "./scheduler.js";
 
-const SEARCH_TERMS = ["estagio", "desenvolvedor junior", "programador junior"];
-const DELAY_BETWEEN_REQUESTS_MS = 1000; // RNF01: no hammer the source site
+// Usage:
+//   npm run scrape            -> one cycle, then exit
+//   npm run scrape:schedule   -> one cycle now, then every SCRAPE_INTERVAL_HOURS (default 6)
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle({ client: pool });
+
+async function cycle() {
+  const result = await runScrape(db);
+  console.log(
+    `Done. Inserted: ${result.inserted}, duplicates: ${result.duplicates}, ` +
+      `failed: ${result.failed}, classified: ${result.classified}`,
+  );
 }
 
-async function main() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const db = drizzle({ client: pool });
-
-  let inserted = 0;
-  let duplicates = 0;
-  let failed = 0;
-
-  for (const [index, termo] of SEARCH_TERMS.entries()) {
-    if (index > 0) await sleep(DELAY_BETWEEN_REQUESTS_MS);
-
-    console.log(`Fetching Gupy jobs for "${termo}"...`);
-    const jobs = await fetchGupyJobs(termo);
-    console.log(`  got ${jobs.length} jobs`);
-
-    for (const job of jobs) {
-      try {
-        // Duplicates (same url_original across terms/runs) are skipped by the
-        // database itself; returning() is empty when that happens.
-        const rows = await db
-          .insert(vagas)
-          .values(job)
-          .onConflictDoNothing({ target: vagas.url_original })
-          .returning({ id: vagas.id });
-        if (rows.length > 0) inserted++;
-        else duplicates++;
-      } catch (error) {
-        failed++;
-        console.error(`  failed to insert "${job.titulo}":`, error);
-      }
-    }
+if (process.argv.includes("--schedule")) {
+  const hours = Number(process.env.SCRAPE_INTERVAL_HOURS ?? 6);
+  if (!Number.isFinite(hours) || hours <= 0) {
+    throw new Error(`Invalid SCRAPE_INTERVAL_HOURS: ${process.env.SCRAPE_INTERVAL_HOURS}`);
   }
 
-  console.log(
-    `Done. Inserted: ${inserted}, duplicates: ${duplicates}, failed: ${failed}`,
-  );
-  await pool.end();
-}
+  console.log(`Scheduler started: scraping every ${hours}h`);
+  const stop = startScheduler(cycle, hours * 60 * 60 * 1000);
 
-main().catch((error) => {
-  console.error("Scraper run failed:", error);
-  process.exit(1);
-});
+  const shutdown = () => {
+    stop();
+    void pool.end().then(() => process.exit(0));
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+} else {
+  cycle()
+    .catch((error) => {
+      console.error("Scraper run failed:", error);
+      process.exitCode = 1;
+    })
+    .finally(() => pool.end());
+}

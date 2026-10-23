@@ -11,7 +11,8 @@
     "lint": "eslint . --ext .ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "dev": "tsx src/index.ts",
-    "scrape": "tsx src/scraper/run.ts"
+    "scrape": "tsx src/scraper/run.ts",
+    "scrape:schedule": "tsx src/scraper/run.ts --schedule"
   },
   "keywords": [],
   "author": "",
