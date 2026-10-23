@@ -36,12 +36,24 @@ export const curriculo_versions = pgTable("curriculo_versions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// vaga_id fica sem FK por enquanto: a tabela de vagas só existe a partir da Sprint 4.
-// null = análise pura (sem vaga associada); preenchido quando a Sprint 3 adicionar a
-// comparação com vaga.
+export const vagas = pgTable("vagas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fonte: varchar("fonte", { length: 255 }).notNull(),
+  url_original: varchar("url_original", { length: 1000 }).notNull().unique(),
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  empresa: varchar("empresa", { length: 255 }),
+  descricao_bruta: text("descricao_bruta").notNull(),
+  // Preenchido na Sprint 5 (classificação por IA); null até lá.
+  requisitos_estruturados: jsonb("requisitos_estruturados"),
+  localizacao: varchar("localizacao", { length: 255 }),
+  nivel: varchar("nivel", { length: 255 }),
+  coletado_em: timestamp("coletado_em").defaultNow().notNull(),
+});
+
+// null = análise pura (sem vaga associada); preenchido na comparação com vaga.
 export const match_analises = pgTable("match_analises", {
   id: uuid("id").primaryKey().defaultRandom(),
-  vaga_id: uuid("vaga_id"),
+  vaga_id: uuid("vaga_id").references(() => vagas.id, { onDelete: "set null" }),
   versao_curriculo_id: uuid("versao_curriculo_id")
     .notNull()
     .references((): AnyPgColumn => curriculo_versions.id, { onDelete: "cascade" }),
