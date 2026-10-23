@@ -14,7 +14,35 @@ mais estável pra scraping, usado por muita empresa BR, sem bloqueio agressivo
 conhecido. **Evitar LinkedIn** — ToS proíbe scraping explicitamente e tem anti-bot
 pesado (rate limit agressivo, captcha); fonte 2 fica pra quando a 1 estiver validada.
 
-Confirma Gupy, ou prefere outra fonte pra começar?
+Confirmado pelo usuário: **Gupy**, ciente das limitações discutidas (robots.txt,
+rate limit, sem paralelismo agressivo).
+
+## Investigação técnica — como o Gupy serve os dados
+
+Antes de codar, chequei a página real:
+
+- **`robots.txt` libera geral** (`Disallow:` vazio) — sem restrição de rota.
+- **Não precisa de browser headless**: `https://portal.gupy.io/job-search/term=<termo>`
+  é Next.js com SSR — a página já vem com um `<script id="__NEXT_DATA__">` contendo o
+  JSON completo da lista de vagas. Fetch simples (`fetch`/HTTP GET) + parse de JSON
+  resolve. **Sem Playwright, sem dependência nova pesada.**
+- **Descrição completa já vem na listagem** (campo `description` de cada vaga) —
+  não precisa visitar a página individual de cada vaga, um fetch por termo de busca
+  já traz tudo.
+- **Paginação**: tentei via `offset` e via rota de dados do Next (`_next/data/.../*.json`),
+  nenhum dos dois mudou o resultado (sempre volta página 1) — a paginação real do site
+  usa uma chamada client-side que não identifiquei sem inspecionar o bundle JS a fundo.
+  **Decisão de escopo**: pra essa sprint, só a primeira página por termo de busca
+  (12 vagas/termo). Não é cobertura completa, mas é dado real o suficiente pra validar
+  o pipeline; paginação completa fica pra quando/se precisar de mais volume (já que
+  o scheduler da Sprint 5 vai rodar isso periodicamente, cobertura cresce com o tempo
+  mesmo sem paginação logo de cara).
+- **Mapeamento de campos** (`name`→titulo, `description`→descricao_bruta,
+  `careerPageName`→empresa, `city`+`state`→localizacao, `jobUrl`→url_original,
+  `type`→nivel, valores vistos: `vacancy_type_internship`, `vacancy_type_effective`,
+  `vacancy_type_trainee`).
+- **Termos de busca**: `estagio`, `desenvolvedor junior`, `programador junior` — bate
+  com o perfil do projeto (estágio/júnior).
 
 ## Decisão descartada — análise de perfil LinkedIn via bot logado
 
@@ -48,12 +76,16 @@ conteúdo — isso seria outra feature, fora de escopo.
    `titulo`, `empresa`, `descricao_bruta`, `requisitos_estruturados` (jsonb),
    `localizacao`, `nivel`, `coletado_em`. Depois disso, `match_analises.vaga_id`
    ganha FK de verdade (hoje é uuid solto).
-3. **Serviço scraper separado**: pasta própria (`scraper/` na raiz, não dentro de
-   `src/`), Node.js, decisão do design original de ser processo independente da API
-   (ciclo de vida/falhas diferentes). `npm` próprio ali ou workspace — decido na hora
-   conforme o que for mais simples de rodar.
-4. **Coleta de 1 fonte** (Gupy): busca por termo/stack, parse de listagem + página de
-   vaga individual, grava no banco via o mesmo schema Drizzle (`Vaga`).
+3. **Scraper como módulo**, não serviço/processo separado: `src/scraper/gupy.ts`
+   (fetch + parse) e um script runner (`src/scraper/run.ts`). A decisão original do
+   design (serviço isolado por causa de browser headless/falhas diferentes) não se
+   aplica mais — descobri que não precisa de Playwright, é só HTTP fetch, mesmo
+   runtime/dependências do resto do projeto. Processo separado de verdade (serviço
+   próprio) só passa a fazer sentido se entrar algo que realmente precise de
+   isolamento (ex. Playwright pra outra fonte, no futuro).
+4. **Coleta de 1 fonte** (Gupy): fetch por termo de busca, parse do `__NEXT_DATA__`,
+   grava no banco via o mesmo schema Drizzle (`Vaga`). Sem fetch por vaga individual
+   (descrição já vem na listagem, ver investigação acima).
 5. **Fixtures de HTML** salvos localmente (páginas reais baixadas 1x) pra parser não
    depender de rede nos testes.
 6. **Testes de parsing** contra as fixtures.
