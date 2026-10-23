@@ -1,0 +1,1 @@
+ALTER TABLE "curriculo_versions" ALTER COLUMN "raw_content" SET DATA TYPE text USING "raw_content"::text;

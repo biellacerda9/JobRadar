@@ -31,7 +31,7 @@ export const curriculo_versions = pgTable("curriculo_versions", {
     .notNull()
     .references((): AnyPgColumn => curriculos.id, { onDelete: "cascade" }),
   version_number: varchar("version_number", { length: 255 }).notNull(),
-  raw_content: varchar("raw_content", { length: 10000 }).notNull(),
+  raw_content: text("raw_content").notNull(),
   structured_content: jsonb("structured_content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
